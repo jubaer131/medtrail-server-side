@@ -1,5 +1,5 @@
 const express = require('express')
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express()
 require('dotenv').config();
 const cors =require('cors')
@@ -29,16 +29,41 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
     const popularcampcollection = client.db("medicaltrail").collection("popularCamp");
+    const joincampcollention = client.db("medicaltrail").collection("joincamp");
 
 
 
-
+// popular camp info
 
  app.get('/popularmedicalcamp', async(req,res)=>{
     const result = await popularcampcollection.find().toArray()
     res.send(result)
 
  })
+
+ app.post('/joincamp', async(req,res)=>{
+   const joincampdata = req.body
+   console.log(joincampdata)
+   const result = await joincampcollention.insertOne(joincampdata)
+   res.send(result)
+   
+ })
+
+ app.patch('/joincampdetails/:id', async (req, res) => {
+  const id = req.params.id;
+  const filter = { _id: new ObjectId(id) };
+
+  const updatedDoc = {
+      $inc: { participantCount: 1 } // Increment participantCount by 1
+  };
+
+  const result = await popularcampcollection.updateOne(filter, updatedDoc);
+
+  res.send(result);
+});
+
+
+
 
 
     // Send a ping to confirm a successful connection
