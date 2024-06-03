@@ -1,6 +1,7 @@
 const express = require('express')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express()
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const cors =require('cors')
 const port = process.env.PORT || 8000  
@@ -31,11 +32,24 @@ async function run() {
     const popularcampcollection = client.db("medicaltrail").collection("popularCamp");
     const joincampcollention = client.db("medicaltrail").collection("joincamp");
     const usercollection  = client.db("medicaltrail").collection("users");
+
+
+// jwt related api
+app.post('/jwt', async (req, res) => {
+  const user = req.body
+  const token = jwt.sign(user,process.env.ACCESS_TOKEN_SECRET, {
+    expiresIn: '1h',})
+  res.send({token})
+
+})
+
+
+
+
 // user related api
  app.post('/users', async (req, res) => {
   const user = req.body;
   // insert email if user doesnt exists: 
-  // you can do this many ways (1. email unique, 2. upsert 3. simple checking)
   const query = { email: user.email }
   const existingUser = await usercollection.findOne(query);
   if (existingUser) {
