@@ -108,6 +108,12 @@ app.post('/addacamp',verifyToken,verifyAdmin, async(req,res)=>{
   res.send(result)
 })
 
+app.get('/managecamp',verifyToken,verifyAdmin, async(req,res)=>{
+  const managecampdata = req.body
+  const result = await addcampcollection.find(managecampdata).toArray()
+  res.send(result)
+})
+
 
 
 
@@ -140,19 +146,7 @@ app.post('/addacamp',verifyToken,verifyAdmin, async(req,res)=>{
 });
 
 
-// app.get('/availablecamp', async (req, res) => {
-//   const search = req.query.search;
-//   let query = {};
 
-//   if (search) {
-//     query = {
-//       CampName: { $regex: search, $options: 'i' } // Case-insensitive search
-//     };
-//   }
-//   const result = await addcampcollection.find(query).sort({ CampName: 1 }).toArray();
-//     res.send(result);
- 
-// });
 
 app.get('/availablecamp', async (req, res) => {
   const search = req.query.search;
