@@ -140,17 +140,23 @@ app.post('/addacamp',verifyToken,verifyAdmin, async(req,res)=>{
 });
 
 
+// app.get('/availablecamp', async (req, res) => {
+//   const search = req.query.search;
+//   let query = {};
 
-// availavle camp api 
-
-// app.get('/availablecamp', async(req,res)=>{
-//   const result = await addcampcollection.find().toArray()
-//   res.send(result)
-// })
-
+//   if (search) {
+//     query = {
+//       CampName: { $regex: search, $options: 'i' } // Case-insensitive search
+//     };
+//   }
+//   const result = await addcampcollection.find(query).sort({ CampName: 1 }).toArray();
+//     res.send(result);
+ 
+// });
 
 app.get('/availablecamp', async (req, res) => {
   const search = req.query.search;
+  const sortOrder = req.query.sortOrder === 'desc' ? -1 : 1; // Default to ascending if no sortOrder is provided
   let query = {};
 
   if (search) {
@@ -158,10 +164,11 @@ app.get('/availablecamp', async (req, res) => {
       CampName: { $regex: search, $options: 'i' } // Case-insensitive search
     };
   }
-    const result = await addcampcollection.find(query).toArray();
+  
+  const result = await addcampcollection.find(query).sort({ CampName: sortOrder }).toArray();
     res.send(result);
- 
 });
+
 
 
 
