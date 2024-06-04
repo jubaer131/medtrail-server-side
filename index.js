@@ -32,24 +32,66 @@ async function run() {
     const popularcampcollection = client.db("medicaltrail").collection("popularCamp");
     const joincampcollention = client.db("medicaltrail").collection("joincamp");
     const usercollection  = client.db("medicaltrail").collection("users");
+    const addcampcollection  = client.db("medicaltrail").collection("addcamp");
+    
 
 
 // jwt related api
 app.post('/jwt', async (req, res) => {
   const user = req.body
-  const token = jwt.sign(user,process.env.ACCESS_TOKEN_SECRET, {
+  const token = jwt.sign(user,process.env.ACCESS_TOKEN_SECRET_API, {
     expiresIn: '1h',})
+    console.log(token)
   res.send({token})
 
 })
+
+// midleware for varify token 
+const verifyToken = (req, res, next) => {
+  console.log('inside verify token', req.headers.authorization);
+  if (!req.headers.authorization) {
+    return res.status(401).send({ message: 'unauthorized access' });
+  }
+  const token = req.headers.authorization.split(' ')[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET_API, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: 'unauthorized access' })
+    }
+    req.decoded = decoded;
+    console.log(decoded)
+    next();
+  })
+}
+
+// use verify admin after verifyToken
+const verifyAdmin = async (req, res, next) => {
+  const email = req.decoded.email;
+  const query = { email: email };
+  const user = await usercollection.findOne(query);
+  const isAdmin = user?.role === 'admin';
+  if (!isAdmin) {
+    return res.status(403).send({ message: 'forbidden access' });
+  }
+  next();
+}
 
 
 
 
 // user related api
- app.post('/users', async (req, res) => {
+
+app.get('/user/:email', async (req, res) => {
+  const email = req.params.email
+  const result = await usercollection.findOne({ email })
+  res.send(result)
+}) 
+
+
+
+app.post('/users', async (req, res) => {
   const user = req.body;
   // insert email if user doesnt exists: 
+  // you can do this many ways (1. email unique, 2. upsert 3. simple checking)
   const query = { email: user.email }
   const existingUser = await usercollection.findOne(query);
   if (existingUser) {
@@ -57,7 +99,17 @@ app.post('/jwt', async (req, res) => {
   }
   const result = await usercollection.insertOne(user);
   res.send(result);
- }); 
+});
+
+// admin related api
+app.post('/addacamp',verifyToken,verifyAdmin, async(req,res)=>{
+  const addcamp =req.body
+  const result = await addcampcollection.insertOne(addcamp)
+  res.send(result)
+})
+
+
+
 
 // popular camp info
 
@@ -69,7 +121,6 @@ app.post('/jwt', async (req, res) => {
 
  app.post('/joincamp', async(req,res)=>{
    const joincampdata = req.body
-   console.log(joincampdata)
    const result = await joincampcollention.insertOne(joincampdata)
    res.send(result)
    
