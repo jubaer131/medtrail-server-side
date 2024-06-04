@@ -141,6 +141,41 @@ app.post('/addacamp',verifyToken,verifyAdmin, async(req,res)=>{
 
 
 
+// availavle camp api 
+
+// app.get('/availablecamp', async(req,res)=>{
+//   const result = await addcampcollection.find().toArray()
+//   res.send(result)
+// })
+
+
+app.get('/availablecamp', async (req, res) => {
+  const search = req.query.search;
+  let query = {};
+
+  if (search) {
+    query = {
+      CampName: { $regex: search, $options: 'i' } // Case-insensitive search
+    };
+  }
+    const result = await addcampcollection.find(query).toArray();
+    res.send(result);
+ 
+});
+
+
+
+app.post('/saveavailablecamp', async(req,res)=>{
+  const availablecampdata = req.body
+  const result = await joincampcollention.insertOne(availablecampdata)
+  res.send(result)
+  
+})
+
+
+
+
+
 
 
     // Send a ping to confirm a successful connection
