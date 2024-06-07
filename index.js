@@ -3,6 +3,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express()
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const cors =require('cors')
 const port = process.env.PORT || 8000  
 
@@ -33,7 +34,8 @@ async function run() {
     const joincampcollention = client.db("medicaltrail").collection("joincamp");
     const usercollection  = client.db("medicaltrail").collection("users");
     const addcampcollection  = client.db("medicaltrail").collection("addcamp");
-    
+    const feedbackcollection = client.db("medicaltrail").collection("feedback");
+    const childrencollection = client.db("medicaltrail").collection("children");
 
 
 // jwt related api
@@ -87,7 +89,6 @@ app.get('/user/:email', async (req, res) => {
 }) 
 
 
-
 app.post('/users', async (req, res) => {
   const user = req.body;
   // insert email if user doesnt exists: 
@@ -101,6 +102,8 @@ app.post('/users', async (req, res) => {
   res.send(result);
 });
 
+
+
 // admin related api
 app.post('/addacamp',verifyToken,verifyAdmin, async(req,res)=>{
   const addcamp =req.body
@@ -109,11 +112,173 @@ app.post('/addacamp',verifyToken,verifyAdmin, async(req,res)=>{
 })
 
 app.get('/managecamp',verifyToken,verifyAdmin, async(req,res)=>{
-  const managecampdata = req.body
-  const result = await addcampcollection.find(managecampdata).toArray()
+  
+  const size = parseInt(req.query.size) || 10; 
+    const page = parseInt(req.query.page) - 1; 
+    const search = req.query.search
+   console.log(size,page)
+  let query = {};
+
+  if (search) {
+    query = {
+      campName: { $regex: search, $options: 'i' } 
+    };
+  }
+  const result = await addcampcollection.find(query).skip(page*size ).limit(size).toArray()
+  res.send(result)
+})
+// pagination count
+app.get('/paginationcount', async(req,res)=>{
+  const count = await addcampcollection.countDocuments();
+  res.send({count})
+})
+
+app.get('/manageregistercamp',verifyToken,verifyAdmin, async (req,res)=>{
+  const search = req.query.search
+  const size = parseInt(req.query.size) || 10; 
+  const page = parseInt(req.query.page) - 1; 
+  
+ console.log(size,page)
+  let query = {};
+
+  if (search) {
+    query = {
+      campName: { $regex: search, $options: 'i' } 
+    };
+  }
+  const result = await joincampcollention.find(query).skip( page*size ).limit(size).toArray()
+  res.send(result)
+})
+// pagination count
+app.get('/countpage', async(req,res)=>{
+  const count = await joincampcollention.countDocuments();
+  res.send({count})
+})
+
+app.delete('/delete/:id', verifyToken,verifyAdmin, async(req,res)=>{
+  const id = req.params.id 
+  console.log(id)
+  const query = { _id : new ObjectId (id)}
+  const result = await addcampcollection.deleteOne(query)
   res.send(result)
 })
 
+app.put('/updarecamp/:id',verifyToken,verifyAdmin, async(req,res)=>{
+
+  const id = req.params.id
+  const update = req.body
+  console.log(update)
+  const query = { _id : new ObjectId(id)}
+  const options = { upsert: true };
+  const updateDoc = {
+    $set: {
+      ...update
+    },
+  };
+  const result = await addcampcollection.updateOne(query,updateDoc,options)
+  res.send(result)
+})
+
+app.patch('/updatestatus/:id',verifyToken,verifyAdmin, async(req,res)=>{
+
+  const id = req.params.id
+  const status = req.body 
+  const query = {_id : new ObjectId(id)}
+  const updatedDoc = {
+    $set : {...status}
+  }
+  const result = await joincampcollention.updateOne(query,updatedDoc)
+  res.send(result)
+})
+
+app.delete('/registerdelete/:id', verifyToken,verifyAdmin, async(req,res)=>{
+  const id = req.params.id 
+  const query = { _id : new ObjectId (id)}
+  const result = await joincampcollention.deleteOne(query)
+  res.send(result)
+})
+
+
+// participant related api 
+ 
+app.get('/analytics', async (req,res)=>{
+  const result = await joincampcollention.find().toArray()
+  res.send(result)
+})
+app.get('/reviewsection', async (req,res)=>{
+  const result = await feedbackcollection.find().toArray()
+  res.send(result)
+})
+
+app.get('/paymenthistory', async (req,res)=>{
+  const search = req.query.search
+  const size = parseInt(req.query.size) || 10; 
+  const page = parseInt(req.query.page) - 1;
+  let query = {};
+
+  if (search) {
+    query = {
+      campName: { $regex: search, $options: 'i' } 
+    };
+  }
+  const result = await joincampcollention.find(query).skip( page*size ).limit(size).toArray()
+  res.send(result)
+})
+// pagination count
+app.get('/countpamenthistory', async(req,res)=>{
+  const count = await joincampcollention.countDocuments();
+  res.send({count})
+})
+
+app.delete('/cencelRegistation/:id',  async(req,res)=>{
+  const id = req.params.id 
+  const query = { _id : new ObjectId (id)}
+  const result = await joincampcollention.deleteOne(query)
+  res.send(result)
+})
+app.post('/feedback', async (req,res)=>{
+  const feedback = req.body
+  const result = await feedbackcollection.insertOne(feedback)
+  res.send(result)
+})
+
+
+    // payment intent
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price*100);
+      console.log(amount)
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types : [ "card"],
+        
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+
+    app.patch('/payments/:id', async(req,res)=>{
+
+      const id = req.params.id
+      const PaymentStatus = req.body 
+      const query = {_id : new ObjectId(id)}
+      const updatedDoc = {
+        $set : {...PaymentStatus}
+      }
+      const result = await joincampcollention.updateOne(query,updatedDoc)
+      res.send(result)
+    })
+// espetial camp for children 
+
+app.get('/childrencamp', async(req,res)=>{
+  const result = await childrencollection.find().toArray()
+  res.send(result)
+
+})
 
 
 
@@ -146,23 +311,20 @@ app.get('/managecamp',verifyToken,verifyAdmin, async(req,res)=>{
 });
 
 
-
-
 app.get('/availablecamp', async (req, res) => {
   const search = req.query.search;
-  const sortOrder = req.query.sortOrder === 'desc' ? -1 : 1; // Default to ascending if no sortOrder is provided
+  const sortOrder = req.query.sortOrder === 'desc' ? -1 : 1; 
   let query = {};
 
   if (search) {
     query = {
-      CampName: { $regex: search, $options: 'i' } // Case-insensitive search
+      campName: { $regex: search, $options: 'i' } 
     };
   }
   
   const result = await addcampcollection.find(query).sort({ CampName: sortOrder }).toArray();
     res.send(result);
 });
-
 
 
 
