@@ -212,8 +212,10 @@ app.get('/reviewsection', async (req,res)=>{
 
 app.get('/paymenthistory', async (req,res)=>{
   const search = req.query.search
-  const size = parseInt(req.query.size) || 10; 
-  const page = parseInt(req.query.page) - 1;
+  const size = parseInt(req.query.size) ; 
+  const page = parseInt(req.query.page) ;
+
+  const skip = (page - 1) * size;
   let query = {};
 
   if (search) {
@@ -221,7 +223,7 @@ app.get('/paymenthistory', async (req,res)=>{
       campName: { $regex: search, $options: 'i' } 
     };
   }
-  const result = await joincampcollention.find(query).skip( page*size ).limit(size).toArray()
+  const result = await joincampcollention.find(query).skip(skip).limit(size).toArray()
   res.send(result)
 })
 // pagination count
@@ -310,6 +312,7 @@ app.get('/childrencamp', async(req,res)=>{
   res.send(result);
 });
 
+  // available camp
 
 app.get('/availablecamp', async (req, res) => {
   const search = req.query.search;
@@ -334,6 +337,18 @@ app.post('/saveavailablecamp', async(req,res)=>{
   res.send(result)
   
 })
+ app.patch('/bookingmodal2/:id', async (req, res) => {
+  const id = req.params.id;
+  const filter = { _id: new ObjectId(id) };
+
+  const updatedDoc = {
+      $inc: { participantCount: 1 } 
+  };
+
+  const result = await addcampcollection.updateOne(filter, updatedDoc);
+
+  res.send(result);
+});
 
 
 
